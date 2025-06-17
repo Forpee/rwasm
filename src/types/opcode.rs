@@ -16,6 +16,7 @@ use crate::{
     MaxStackHeight,
     SysFuncIdx,
     TrapCode,
+    WASMInstruction,
 };
 use alloc::{format, vec::Vec};
 use bincode::{Decode, Encode};
@@ -280,6 +281,17 @@ impl Opcode {
                 *offset = new_offset.into();
             }
             _ => unreachable!(),
+        }
+    }
+
+    pub fn trace(&self, address: u64) -> WASMInstruction {
+        match *self {
+            Opcode::I32Add | Opcode::I32Sub | Opcode::I32Mul => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: None,
+            },
+            _ => unimplemented!(),
         }
     }
 }

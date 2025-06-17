@@ -1,5 +1,6 @@
 use crate::{
     always_failing_syscall_handler,
+    vm::jolt_tracer::JoltTracer,
     ExecutorConfig,
     FuelCosts,
     GlobalIdx,
@@ -38,6 +39,7 @@ pub struct Store<T> {
     // list of nested calls return pointers
     pub(crate) syscall_handler: SyscallHandler<T>,
     pub(crate) fuel_costs: FuelCosts,
+    pub jolt_tracer: JoltTracer,
 }
 
 impl<T: Default> Default for Store<T> {
@@ -76,6 +78,7 @@ impl<T> Store<T> {
             empty_data_segments,
             config,
             fuel_costs: Default::default(),
+            jolt_tracer: JoltTracer::default(),
         }
     }
 

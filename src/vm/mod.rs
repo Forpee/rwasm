@@ -5,6 +5,7 @@ mod engine;
 mod executor;
 mod handler;
 mod instr_ptr;
+mod jolt_tracer;
 mod memory;
 mod store;
 mod table_entity;

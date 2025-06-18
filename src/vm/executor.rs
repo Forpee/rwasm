@@ -248,7 +248,8 @@ impl<'a, T> RwasmExecutor<'a, T> {
     }
 
     fn capture_pre_state(&mut self, instr: &Opcode) {
-        let trace_instr = instr.trace(self.program_counter() as u64);
+        const PREPEND_NOOP: u64 = 1;
+        let trace_instr = instr.trace(self.program_counter() as u64 + PREPEND_NOOP);
         self.store.jolt_tracer.start_instruction(trace_instr);
         let pre_state = self.pre_state(instr);
         self.store.jolt_tracer.capture_pre_state(pre_state);

@@ -22,7 +22,7 @@ pub struct WASMArgs {
     pub inputs: Vec<u64>,
 }
 
-fn trace(args: &WASMArgs) -> Vec<WASMTraceRow> {
+pub fn trace(args: &WASMArgs) -> Vec<WASMTraceRow> {
     let config = CompilationConfig::default()
         .with_entrypoint_name(args.entry_point.clone().into())
         .with_allow_malformed_entrypoint_func_type(true);
@@ -40,7 +40,8 @@ fn trace(args: &WASMArgs) -> Vec<WASMTraceRow> {
     output
 }
 
-fn decode(bytecode: &[u8], entry_point: &str) -> (Vec<WASMInstruction>, Vec<(u64, u8)>) {
+pub fn decode(bytecode: &[u8], entry_point: &str) -> (Vec<WASMInstruction>, Vec<(u64, u8)>) {
+    const PREPEND_NOOP: u64 = 1;
     let config = CompilationConfig::default()
         .with_entrypoint_name(entry_point.into())
         .with_allow_malformed_entrypoint_func_type(true);
@@ -50,7 +51,7 @@ fn decode(bytecode: &[u8], entry_point: &str) -> (Vec<WASMInstruction>, Vec<(u64
         .instr
         .iter()
         .enumerate()
-        .map(|(address, i)| i.trace(address as u64))
+        .map(|(address, i)| i.trace(address as u64 + PREPEND_NOOP))
         .collect();
     let init_memory = rwasm_module
         .data_section

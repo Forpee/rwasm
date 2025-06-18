@@ -24,6 +24,12 @@ pub enum WASMOpcode {
     I32SUB,
 }
 
+impl WASMOpcode {
+    pub fn bitflag(self) -> u64 {
+        1u64 << (self as u8)
+    }
+}
+
 impl From<&Opcode> for WASMOpcode {
     fn from(opcode: &Opcode) -> Self {
         match opcode {
@@ -35,9 +41,10 @@ impl From<&Opcode> for WASMOpcode {
     }
 }
 
+// (address, value) tuples
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct StackState {
-    pub sp1: Option<(u64, u64)>, // (address, value)
+    pub sp1: Option<(u64, u64)>,
     pub sp2: Option<(u64, u64)>,
     pub spd: Option<(u64, u64)>,
 }

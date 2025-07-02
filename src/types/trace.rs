@@ -1,5 +1,23 @@
 use crate::Opcode;
 use serde::{Deserialize, Serialize};
+use strum::EnumCount;
+use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
+
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub enum MemoryOp {
+    Read(u64),       // (address)
+    Write(u64, u64), // (address, new_value)
+}
+
+impl MemoryOp {
+    pub fn noop_read() -> Self {
+        Self::Read(0)
+    }
+
+    pub fn noop_write() -> Self {
+        Self::Write(0, 0)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WASMTraceRow {
@@ -61,3 +79,22 @@ pub enum MemoryState {
         post_value: u64,
     },
 }
+
+/// Boolean flags used in Jolt's R1CS constraints (`opflags` in the Jolt paper).
+/// Note that the flags below deviate slightly from those described in Appendix A.1
+/// of the Jolt paper.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Default, Eq, PartialOrd, Hash, Ord, EnumCountMacro, EnumIter,
+)]
+pub enum CircuitFlags {
+    #[default] // Need a default so that we can derive EnumIter on `JoltR1CSInputs`
+    /// 1 if the instruction is a load (i.e. `LW`)
+    Load,
+    /// 1 if the instruction is a store (i.e. `SW`)
+    Store,
+    /// 1 if the lookup output is to be stored in `rd` at the end of the step.
+    WriteLookupOutputToRD,
+    /// Indicates whether the instruction performs a concat-type lookup.
+    ConcatLookupQueryChunks,
+}
+pub const NUM_CIRCUIT_FLAGS: usize = CircuitFlags::COUNT;

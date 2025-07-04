@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WASMTraceRow {
+    pub instruction: WASMInstruction,
+    pub stack_state: StackState,
+    pub memory_state: Option<MemoryState>,
+}
+
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum MemoryOp {
     Read(u64),       // (address)
@@ -19,14 +26,6 @@ impl MemoryOp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WASMTraceRow {
-    pub instruction: WASMInstruction,
-    pub stack_state: StackState,
-    pub memory_state: Option<MemoryState>,
-    pub advice_value: Option<u64>,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WASMInstruction {
     pub address: u64,
@@ -37,14 +36,20 @@ pub struct WASMInstruction {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Hash)]
 #[allow(non_camel_case_types)]
 pub enum WASMOpcode {
+    I32CONST,
+    I32AND,
+    I32OR,
+    I32XOR,
     I32MUL,
     I32ADD,
-    I32SUB,
+    I32LOAD,
+    I32STORE,
+    I32EQ,
 }
 
 impl WASMOpcode {
     pub fn bitflag(self) -> u64 {
-        1u64 << (self as u8)
+        1u64 << (self as u8) // TODO
     }
 }
 
@@ -53,7 +58,13 @@ impl From<&Opcode> for WASMOpcode {
         match opcode {
             Opcode::I32Mul => WASMOpcode::I32MUL,
             Opcode::I32Add => WASMOpcode::I32ADD,
-            Opcode::I32Sub => WASMOpcode::I32SUB,
+            Opcode::I32And => WASMOpcode::I32AND,
+            Opcode::I32Or => WASMOpcode::I32OR,
+            Opcode::I32Xor => WASMOpcode::I32XOR,
+            Opcode::I32Const(_) => WASMOpcode::I32CONST,
+            Opcode::I32Load(_) => WASMOpcode::I32LOAD,
+            Opcode::I32Store(_) => WASMOpcode::I32STORE,
+            Opcode::I32Eq => WASMOpcode::I32EQ,
             _ => panic!("Unsupported opcode for WASMOpcode conversion"),
         }
     }
@@ -62,6 +73,7 @@ impl From<&Opcode> for WASMOpcode {
 // (address, value) tuples
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct StackState {
+    pub sp: u64,
     pub sp1: Option<(u64, u64)>,
     pub sp2: Option<(u64, u64)>,
     pub spd: Option<(u64, u64)>,
@@ -98,3 +110,15 @@ pub enum CircuitFlags {
     ConcatLookupQueryChunks,
 }
 pub const NUM_CIRCUIT_FLAGS: usize = CircuitFlags::COUNT;
+
+impl WASMInstruction {
+    pub fn to_circuit_flags(&self) -> [bool; NUM_CIRCUIT_FLAGS] {
+        let mut flags = [false; NUM_CIRCUIT_FLAGS];
+        flags[CircuitFlags::WriteLookupOutputToRD as usize] = true; // TODO: for other instructions
+        flags[CircuitFlags::ConcatLookupQueryChunks as usize] = matches!(
+            self.opcode,
+            WASMOpcode::I32EQ | WASMOpcode::I32OR | WASMOpcode::I32XOR | WASMOpcode::I32AND
+        );
+        flags
+    }
+}

@@ -283,13 +283,22 @@ impl Opcode {
             _ => unreachable!(),
         }
     }
+}
 
+impl Opcode {
     pub fn trace(&self, address: u64) -> WASMInstruction {
         match *self {
-            Opcode::I32Add | Opcode::I32Sub | Opcode::I32Mul => WASMInstruction {
+            Opcode::I32Add | Opcode::I32Mul | Opcode::I32And | Opcode::I32Or | Opcode::I32Xor => {
+                WASMInstruction {
+                    address,
+                    opcode: self.into(),
+                    imm: None,
+                }
+            }
+            Opcode::I32Const(value) => WASMInstruction {
                 address,
                 opcode: self.into(),
-                imm: None,
+                imm: Some(value.to_bits() as u64),
             },
             _ => unimplemented!(),
         }

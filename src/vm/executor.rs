@@ -137,6 +137,9 @@ impl<'a, T> RwasmExecutor<'a, T> {
             let instr = self.ip.get();
             #[cfg(feature = "debug-print")]
             self.debug_print(&instr);
+            const PREPEND_NOOP: u64 = 1;
+            let trace_instr = instr.trace(self.program_counter() as u64 + PREPEND_NOOP);
+            self.store.jolt_tracer.start_instruction(trace_instr);
             self.capture_pre_state(&instr);
             match instr {
                 // stack
@@ -244,56 +247,8 @@ impl<'a, T> RwasmExecutor<'a, T> {
                 opcode => self.exec_fpu_opcode(opcode)?,
             }
             self.capture_post_state(&instr);
+            self.store.jolt_tracer.end_instruction();
         }
-    }
-
-    fn capture_pre_state(&mut self, instr: &Opcode) {
-        const PREPEND_NOOP: u64 = 1;
-        let trace_instr = instr.trace(self.program_counter() as u64 + PREPEND_NOOP);
-        self.store.jolt_tracer.start_instruction(trace_instr);
-        let pre_state = self.pre_state(instr);
-        self.store.jolt_tracer.capture_pre_state(pre_state);
-    }
-
-    fn capture_post_state(&mut self, instr: &Opcode) {
-        let post_state = self.post_state(instr);
-        self.store.jolt_tracer.capture_post_state(post_state);
-        self.store.jolt_tracer.end_instruction();
-    }
-
-    fn pre_state(&mut self, instr: &Opcode) -> (Option<(u64, u64)>, Option<(u64, u64)>) {
-        match *instr {
-            Opcode::I32Add | Opcode::I32Sub | Opcode::I32Mul => self.binop_pre_state(),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn post_state(&mut self, instr: &Opcode) -> Option<(u64, u64)> {
-        match *instr {
-            Opcode::I32Add | Opcode::I32Sub | Opcode::I32Mul => self.op_post_state(),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn binop_pre_state(&mut self) -> (Option<(u64, u64)>, Option<(u64, u64)>) {
-        let sp1 = self.sp;
-        let sp1_val = sp1.last();
-        let sp2_val = sp1.nth_back(2);
-        let sp1_isize = sp1.offset_from(self.value_stack.base_ptr());
-        assert!(sp1_isize > 0);
-        let sp1 = sp1_isize as u64;
-        (
-            Some((sp1, sp1_val.as_u64())),
-            Some((sp1 - 1, sp2_val.as_u64())),
-        )
-    }
-
-    fn op_post_state(&mut self) -> Option<(u64, u64)> {
-        let spd = self.sp;
-        let spd_val = spd.last();
-        let spd_isize = spd.offset_from(self.value_stack.base_ptr());
-        assert!(spd_isize >= 0);
-        Some((spd_isize as u64, spd_val.as_u64()))
     }
 
     #[cfg(feature = "debug-print")]
@@ -425,5 +380,66 @@ impl<'a, T> RwasmExecutor<'a, T> {
 
     pub fn context_mut(&mut self) -> &mut T {
         &mut self.store.context
+    }
+}
+
+/* --- Tracing stuff --- */
+impl<'a, T> RwasmExecutor<'a, T> {
+    fn capture_pre_state(&mut self, instr: &Opcode) {
+        let pre_state = self.pre_state(instr);
+        self.store.jolt_tracer.capture_pre_state(pre_state);
+    }
+
+    fn capture_post_state(&mut self, instr: &Opcode) {
+        let post_state = self.post_state(instr);
+        self.store.jolt_tracer.capture_post_state(post_state);
+    }
+
+    fn pre_state(&mut self, instr: &Opcode) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
+        match *instr {
+            Opcode::I32Eq
+            | Opcode::I32Add
+            | Opcode::I32Mul
+            | Opcode::I32And
+            | Opcode::I32Or
+            | Opcode::I32Xor => self.binop_pre_state(),
+            Opcode::I32Const(..) => (self.sp(), None, None),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn post_state(&mut self, instr: &Opcode) -> Option<(u64, u64)> {
+        match *instr {
+            Opcode::I32Eq
+            | Opcode::I32Add
+            | Opcode::I32Mul
+            | Opcode::I32And
+            | Opcode::I32Or
+            | Opcode::I32Xor => self.op_post_state(),
+            Opcode::I32Const(_) => self.op_post_state(),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn binop_pre_state(&mut self) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
+        let sp1_val = self.sp.last();
+        let sp2_val = self.sp.nth_back(2);
+        let sp = self.sp();
+        (
+            sp,
+            Some((sp - 1, sp1_val.as_u64())),
+            Some((sp - 2, sp2_val.as_u64())),
+        )
+    }
+
+    fn op_post_state(&mut self) -> Option<(u64, u64)> {
+        let spd_val = self.sp.last();
+        let sp = self.sp();
+        Some((sp - 1, spd_val.as_u64()))
+    }
+
+    fn sp(&mut self) -> u64 {
+        let sp_isize = self.sp.offset_from(self.value_stack.base_ptr());
+        sp_isize as u64
     }
 }

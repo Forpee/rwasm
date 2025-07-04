@@ -18,16 +18,16 @@ impl JoltTracer {
             instruction: inst,
             stack_state: StackState::default(),
             memory_state: None,
-            advice_value: None,
         });
     }
 
-    pub fn capture_pre_state(&self, (sp1, sp2): (Option<(u64, u64)>, Option<(u64, u64)>)) {
+    pub fn capture_pre_state(&self, (sp, sp1, sp2): (u64, Option<(u64, u64)>, Option<(u64, u64)>)) {
         if !*self.open.try_borrow().unwrap() {
             return;
         }
         let mut rows = self.rows.try_borrow_mut().unwrap();
         let row = rows.last_mut().unwrap();
+        row.stack_state.sp = sp;
         row.stack_state.sp1 = sp1;
         row.stack_state.sp2 = sp2;
     }

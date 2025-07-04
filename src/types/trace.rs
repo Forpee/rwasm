@@ -1,4 +1,4 @@
-use crate::Opcode;
+use crate::{Opcode, MEMORY_OPS_PER_INSTRUCTION};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
@@ -23,6 +23,40 @@ impl MemoryOp {
 
     pub fn noop_write() -> Self {
         Self::Write(0, 0)
+    }
+}
+
+impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
+    fn from(val: &WASMTraceRow) -> Self {
+        let sp1_read = || MemoryOp::Read(val.stack_state.sp1.unwrap().0);
+        let sp2_read = || MemoryOp::Read(val.stack_state.sp2.unwrap().0);
+        let spd_write = || {
+            MemoryOp::Write(
+                val.stack_state.spd.unwrap().0,
+                val.stack_state.spd.unwrap().1,
+            )
+        };
+
+        match val.instruction.opcode {
+            WASMOpcode::I32ADD
+            | WASMOpcode::I32MUL
+            | WASMOpcode::I32AND
+            | WASMOpcode::I32OR
+            | WASMOpcode::I32XOR
+            | WASMOpcode::I32EQ => [sp1_read(), sp2_read(), spd_write(), MemoryOp::noop_read()],
+
+            // const
+            WASMOpcode::I32CONST => {
+                // I32Const is a special case where we only read from sp1 and write to spd
+                [
+                    MemoryOp::noop_read(),
+                    MemoryOp::noop_read(),
+                    spd_write(),
+                    MemoryOp::noop_read(),
+                ]
+            }
+            _ => unreachable!("{val:?}"),
+        }
     }
 }
 

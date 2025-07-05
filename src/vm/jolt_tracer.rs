@@ -1,6 +1,6 @@
 // //! Tracer library for a Jolt zkVM.
 
-use crate::{MemoryState, StackState, WASMInstruction, WASMTraceRow};
+use crate::{MemoryState, SPState, StackState, WASMInstruction, WASMTraceRow};
 use core::cell::RefCell;
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ impl JoltTracer {
         });
     }
 
-    pub fn capture_pre_state(&self, (sp, sp1, sp2): (u64, Option<(u64, u64)>, Option<(u64, u64)>)) {
+    pub fn capture_pre_state(&self, (sp, sp1, sp2): (u64, Option<SPState>, Option<SPState>)) {
         if !*self.open.try_borrow().unwrap() {
             return;
         }
@@ -32,7 +32,7 @@ impl JoltTracer {
         row.stack_state.sp2 = sp2;
     }
 
-    pub fn capture_post_state(&self, spd: Option<(u64, u64)>) {
+    pub fn capture_post_state(&self, spd: Option<SPState>) {
         if !*self.open.try_borrow().unwrap() {
             return;
         }

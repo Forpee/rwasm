@@ -1,6 +1,6 @@
-use crate::{Opcode, RwasmExecutor};
+use crate::{Opcode, RwasmExecutor, SPState};
 
-impl<'a, T> RwasmExecutor<'a, T> {
+impl<T> RwasmExecutor<'_, T> {
     pub fn capture_pre_state(&mut self, instr: &Opcode) {
         let pre_state = self.pre_state(instr);
         self.store.jolt_tracer.capture_pre_state(pre_state);
@@ -16,7 +16,7 @@ impl<'a, T> RwasmExecutor<'a, T> {
     /// - `sp`: current stack pointer
     /// - `sp1`: (sp - 1, value at sp - 1)
     /// - `sp2`: (sp - 2, value at sp - 2)
-    fn pre_state(&mut self, instr: &Opcode) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
+    fn pre_state(&mut self, instr: &Opcode) -> (u64, Option<SPState>, Option<SPState>) {
         match *instr {
             Opcode::I32Eq
             | Opcode::I32Add
@@ -48,7 +48,7 @@ impl<'a, T> RwasmExecutor<'a, T> {
     }
 
     // TODO: change name to ...
-    fn post_state(&mut self, instr: &Opcode) -> Option<(u64, u64)> {
+    fn post_state(&mut self, instr: &Opcode) -> Option<SPState> {
         match *instr {
             Opcode::I32Eq
             | Opcode::I32Add
@@ -77,30 +77,45 @@ impl<'a, T> RwasmExecutor<'a, T> {
     /// - `sp`: current stack pointer
     /// - `sp1`: (sp - 1, value at sp - 1)
     /// - `sp2`: (sp - 2, value at sp - 2)
-    fn binop_pre_state(&mut self) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
+    fn binop_pre_state(&mut self) -> (u64, Option<SPState>, Option<SPState>) {
         let sp1_val = self.sp.last();
         let sp2_val = self.sp.nth_back(2);
         let sp = self.sp();
         (
             sp,
-            Some((sp - 1, sp1_val.as_u64())),
-            Some((sp - 2, sp2_val.as_u64())),
+            Some(SPState {
+                address: sp - 1,
+                value: sp1_val.as_u64(),
+            }),
+            Some(SPState {
+                address: sp - 2,
+                value: sp2_val.as_u64(),
+            }),
         )
     }
 
     /// # Returns
     /// - `sp`: current stack pointer
     /// - `sp1`: (sp - 1, value at sp - 1)
-    fn unary_op_pre_state(&mut self) -> (u64, Option<(u64, u64)>) {
+    fn unary_op_pre_state(&mut self) -> (u64, Option<SPState>) {
         let sp1_val = self.sp.last();
         let sp = self.sp();
-        (sp, Some((sp - 1, sp1_val.as_u64())))
+        (
+            sp,
+            Some(SPState {
+                address: sp - 1,
+                value: sp1_val.as_u64(),
+            }),
+        )
     }
 
-    fn spd_post_state(&mut self) -> Option<(u64, u64)> {
+    fn spd_post_state(&mut self) -> Option<SPState> {
         let spd_val = self.sp.last();
         let sp = self.sp();
-        Some((sp - 1, spd_val.as_u64()))
+        Some(SPState {
+            address: sp - 1,
+            value: spd_val.as_u64(),
+        })
     }
 
     fn sp(&mut self) -> u64 {

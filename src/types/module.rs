@@ -177,6 +177,7 @@ mod tests {
             data_section: Default::default(),
             elem_section: vec![5, 6, 7, 8, 9],
             wasm_section: vec![],
+            num_pages: 1,
         };
         let encoded_module = bincode::encode_to_vec(&module, bincode::config::legacy()).unwrap();
         let module2: RwasmModule;

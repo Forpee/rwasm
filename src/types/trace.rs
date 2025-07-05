@@ -28,23 +28,22 @@ impl MemoryOp {
 
 impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
     fn from(val: &WASMTraceRow) -> Self {
-        let sp1_read = || MemoryOp::Read(val.stack_state.sp1.unwrap().0);
-        let sp2_read = || MemoryOp::Read(val.stack_state.sp2.unwrap().0);
+        let sp1_read = || MemoryOp::Read(val.stack_state.sp1.unwrap().address);
+        let sp2_read = || MemoryOp::Read(val.stack_state.sp2.unwrap().address);
         let spd_write = || {
             MemoryOp::Write(
-                val.stack_state.spd.unwrap().0, /* TODO: Fix opaque indexes 0 & 1 for tuples.
-                                                 * i.e. create new type */
-                val.stack_state.spd.unwrap().1,
+                val.stack_state.spd.unwrap().address,
+                val.stack_state.spd.unwrap().value,
             )
         };
 
         let sp1_offset = || -> u64 {
-            let sp1_val = val.stack_state.sp1.unwrap().1;
+            let sp1_val = val.stack_state.sp1.unwrap().value;
             let imm = val.instruction.imm.unwrap();
             imm.checked_add(sp1_val).expect("Memory offset overflow")
         };
         let sp2_offset = || -> u64 {
-            let sp2_val = val.stack_state.sp2.unwrap().1;
+            let sp2_val = val.stack_state.sp2.unwrap().value;
             let imm = val.instruction.imm.unwrap();
             imm.checked_add(sp2_val).expect("Memory offset overflow")
         };
@@ -155,13 +154,19 @@ impl From<&Opcode> for WASMOpcode {
     }
 }
 
-// (address, value) tuples
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct StackState {
     pub sp: u64,
-    pub sp1: Option<(u64, u64)>,
-    pub sp2: Option<(u64, u64)>,
-    pub spd: Option<(u64, u64)>,
+    pub sp1: Option<SPState>,
+    pub sp2: Option<SPState>,
+    pub spd: Option<SPState>,
+}
+
+// (address, value) tuples
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct SPState {
+    pub address: u64,
+    pub value: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

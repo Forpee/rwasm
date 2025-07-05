@@ -148,13 +148,14 @@ impl ModuleParser {
             .finalize(true);
 
         // merge the entrypoint with our code section
-        let mut code_section = self
-            .allocations
-            .translation
-            .segment_builder
-            .entrypoint_bytecode;
-        let entrypoint_length = code_section.len() as u32;
-        code_section.extend(self.allocations.translation.instruction_set.iter());
+        // let mut code_section = self
+        //     .allocations
+        //     .translation
+        //     .segment_builder
+        //     .entrypoint_bytecode;
+        // let entrypoint_length = code_section.len() as u32;
+        // code_section.extend(self.allocations.translation.instruction_set.iter());
+        let mut code_section = self.allocations.translation.instruction_set.clone();
 
         // TODO(dmitry123): "optimize it"
         for instr in code_section.iter_mut() {
@@ -163,9 +164,9 @@ impl ModuleParser {
                 | Opcode::ReturnCallInternal(compiled_func)
                 | Opcode::RefFunc(compiled_func) => {
                     if *compiled_func > 0 {
-                        *compiled_func = self.allocations.translation.func_offsets
-                            [*compiled_func as usize - 1]
-                            + entrypoint_length;
+                        *compiled_func =
+                            self.allocations.translation.func_offsets[*compiled_func as usize - 1];
+                        // + entrypoint_length;
                     }
                 }
                 _ => continue,
@@ -179,8 +180,8 @@ impl ModuleParser {
             .global_element_section;
         for elem in element_section.iter_mut() {
             if *elem > 0 {
-                *elem = self.allocations.translation.func_offsets[*elem as usize - 1]
-                    + entrypoint_length;
+                *elem = self.allocations.translation.func_offsets[*elem as usize - 1];
+                // + entrypoint_length;
             }
         }
 
@@ -457,11 +458,11 @@ impl ModuleParser {
             let signature_index = translator
                 .alloc
                 .resolve_func_type_signature(func_type_index);
-            translator
-                .alloc
-                .instruction_set
-                .op_signature_check(signature_index);
-            translator.alloc.instruction_set.op_stack_check(u32::MAX);
+            // translator
+            //     .alloc
+            //     .instruction_set
+            //     .op_signature_check(signature_index);
+            // translator.alloc.instruction_set.op_stack_check(u32::MAX);
             translator
                 .alloc
                 .instruction_set

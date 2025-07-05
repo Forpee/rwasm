@@ -23,9 +23,11 @@ pub struct WASMArgs {
 }
 
 pub fn trace(args: &WASMArgs) -> Vec<WASMTraceRow> {
+    // TODO: Fix duplicate config code betwen decode and trace functions
     let config = CompilationConfig::default()
         .with_entrypoint_name(args.entry_point.clone().into())
-        .with_allow_malformed_entrypoint_func_type(true);
+        .with_allow_malformed_entrypoint_func_type(true)
+        .with_consume_fuel(false);
     let (rwasm_module, _) = RwasmModule::compile(config, &args.bytecode).unwrap();
     let mut store = Store::new(ExecutorConfig::default(), ());
     let mut engine = ExecutionEngine::new();
@@ -47,7 +49,7 @@ pub fn decode(bytecode: &[u8], entry_point: &str) -> (Vec<WASMInstruction>, Vec<
         .with_allow_malformed_entrypoint_func_type(true)
         .with_consume_fuel(false);
     let (rwasm_module, _) = RwasmModule::compile(config, bytecode).unwrap();
-    println!("Decoded module: {:#?}", rwasm_module.code_section.instr);
+    println!("WASM Module: {:#?}", rwasm_module);
     let instructions: Vec<WASMInstruction> = rwasm_module
         .code_section
         .instr

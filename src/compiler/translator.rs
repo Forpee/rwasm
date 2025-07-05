@@ -408,23 +408,23 @@ impl InstructionTranslator {
         let last_func_offset = self.alloc.func_offsets.last().copied().unwrap() as usize;
         // update max stack height in `StackAlloc` opcode
         let how_deep_stack_check = if self.fuel_costs.is_some() { 3 } else { 2 };
-        let mut iter = self
+        let iter = self
             .alloc
             .instruction_set
             .instr
             .iter_mut()
             .skip(last_func_offset)
             .take(how_deep_stack_check);
-        while let Some(opcode) = iter.next() {
-            match opcode {
-                Opcode::ConsumeFuel(_) | Opcode::SignatureCheck(_) => {}
-                Opcode::StackCheck(max_stack_height) => {
-                    *max_stack_height = self.stack_height.max_stack_height();
-                    break;
-                }
-                _ => unreachable!(),
-            }
-        }
+        // while let Some(opcode) = iter.next() {
+        //     match opcode {
+        //         Opcode::ConsumeFuel(_) | Opcode::SignatureCheck(_) => {}
+        //         Opcode::StackCheck(max_stack_height) => {
+        //             *max_stack_height = self.stack_height.max_stack_height();
+        //             break;
+        //         }
+        //         _ => unreachable!(),
+        //     }
+        // }
         Ok(())
     }
 

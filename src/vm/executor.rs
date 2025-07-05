@@ -404,6 +404,13 @@ impl<'a, T> RwasmExecutor<'a, T> {
             | Opcode::I32Or
             | Opcode::I32Xor => self.binop_pre_state(),
             Opcode::I32Const(..) => (self.sp(), None, None),
+
+            // HACK: These are unimplemented opcodes
+            Opcode::ReturnCallInternal(_)
+            | Opcode::Return
+            | Opcode::StackCheck(_)
+            | Opcode::SignatureCheck(_)
+            | Opcode::ConsumeFuel(_) => (self.sp(), None, None),
             _ => unimplemented!(),
         }
     }
@@ -417,6 +424,13 @@ impl<'a, T> RwasmExecutor<'a, T> {
             | Opcode::I32Or
             | Opcode::I32Xor => self.op_post_state(),
             Opcode::I32Const(_) => self.op_post_state(),
+
+            // HACK: These are unimplemented opcodes
+            Opcode::ReturnCallInternal(_)
+            | Opcode::Return
+            | Opcode::StackCheck(_)
+            | Opcode::SignatureCheck(_)
+            | Opcode::ConsumeFuel(_) => None,
             _ => unimplemented!(),
         }
     }

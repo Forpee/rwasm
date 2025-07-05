@@ -55,6 +55,16 @@ impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
                     MemoryOp::noop_read(),
                 ]
             }
+            WASMOpcode::UNIMPL => {
+                // This is a placeholder for unsupported opcodes
+                // We return noop reads/writes
+                [
+                    MemoryOp::noop_read(),
+                    MemoryOp::noop_read(),
+                    MemoryOp::noop_write(),
+                    MemoryOp::noop_read(),
+                ]
+            }
             _ => unreachable!("{val:?}"),
         }
     }
@@ -79,6 +89,9 @@ pub enum WASMOpcode {
     I32LOAD,
     I32STORE,
     I32EQ,
+
+    // HACK
+    UNIMPL,
 }
 
 impl WASMOpcode {
@@ -99,6 +112,11 @@ impl From<&Opcode> for WASMOpcode {
             Opcode::I32Load(_) => WASMOpcode::I32LOAD,
             Opcode::I32Store(_) => WASMOpcode::I32STORE,
             Opcode::I32Eq => WASMOpcode::I32EQ,
+            Opcode::ReturnCallInternal(_)
+            | Opcode::StackCheck(_)
+            | Opcode::SignatureCheck(_)
+            | Opcode::Return
+            | Opcode::ConsumeFuel(_) => WASMOpcode::UNIMPL,
             _ => panic!("Unsupported opcode for WASMOpcode conversion"),
         }
     }
@@ -134,6 +152,7 @@ pub enum MemoryState {
 )]
 pub enum CircuitFlags {
     #[default] // Need a default so that we can derive EnumIter on `JoltR1CSInputs`
+    BinOp,
     /// 1 if the instruction is a load (i.e. `LW`)
     Load,
     /// 1 if the instruction is a store (i.e. `SW`)
@@ -148,11 +167,18 @@ pub const NUM_CIRCUIT_FLAGS: usize = CircuitFlags::COUNT;
 impl WASMInstruction {
     pub fn to_circuit_flags(&self) -> [bool; NUM_CIRCUIT_FLAGS] {
         let mut flags = [false; NUM_CIRCUIT_FLAGS];
-        flags[CircuitFlags::WriteLookupOutputToRD as usize] = true; // TODO: for other instructions
+
+        flags[CircuitFlags::BinOp as usize] =
+            !matches!(self.opcode, WASMOpcode::UNIMPL | WASMOpcode::I32CONST);
+
+        flags[CircuitFlags::WriteLookupOutputToRD as usize] =
+            !matches!(self.opcode, WASMOpcode::UNIMPL);
+
         flags[CircuitFlags::ConcatLookupQueryChunks as usize] = matches!(
             self.opcode,
             WASMOpcode::I32EQ | WASMOpcode::I32OR | WASMOpcode::I32XOR | WASMOpcode::I32AND
         );
+
         flags
     }
 }

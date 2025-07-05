@@ -6,12 +6,16 @@ mod memory;
 mod stack;
 mod system;
 mod table;
+mod tracing;
 
 use crate::{
     types::{AddressOffset, RwasmModule, TableIdx, UntypedValue},
     CallStack,
     Caller,
     InstructionPtr,
+    LittleEndianConvert,
+    LoadInto,
+    MemoryState,
     Opcode,
     Store,
     SysFuncIdx,
@@ -342,6 +346,18 @@ impl<'a, T> RwasmExecutor<'a, T> {
                 &memory[base_address as usize..(base_address + len) as usize],
             );
         }
+
+        // Jolt tracing for store32
+        let base_address = offset + u32::from(address);
+        let mut buffer = <<u32 as LittleEndianConvert>::Bytes as Default>::default();
+        buffer.load_into(memory, base_address as usize).unwrap();
+        let post_value = <u32 as LittleEndianConvert>::from_le_bytes(buffer);
+        let memory_state = MemoryState::Write {
+            address: base_address as u64,
+            post_value: post_value as u64,
+        };
+        self.store.jolt_tracer.push_memory(memory_state);
+
         self.ip.add(1);
         Ok(())
     }
@@ -380,80 +396,5 @@ impl<'a, T> RwasmExecutor<'a, T> {
 
     pub fn context_mut(&mut self) -> &mut T {
         &mut self.store.context
-    }
-}
-
-/* --- Tracing stuff --- */
-impl<'a, T> RwasmExecutor<'a, T> {
-    fn capture_pre_state(&mut self, instr: &Opcode) {
-        let pre_state = self.pre_state(instr);
-        self.store.jolt_tracer.capture_pre_state(pre_state);
-    }
-
-    fn capture_post_state(&mut self, instr: &Opcode) {
-        let post_state = self.post_state(instr);
-        self.store.jolt_tracer.capture_post_state(post_state);
-    }
-
-    fn pre_state(&mut self, instr: &Opcode) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
-        match *instr {
-            Opcode::I32Eq
-            | Opcode::I32Add
-            | Opcode::I32Mul
-            | Opcode::I32And
-            | Opcode::I32Or
-            | Opcode::I32Xor => self.binop_pre_state(),
-            Opcode::I32Const(..) => (self.sp(), None, None),
-
-            // HACK: These are unimplemented opcodes
-            Opcode::ReturnCallInternal(_)
-            | Opcode::Return
-            | Opcode::StackCheck(_)
-            | Opcode::SignatureCheck(_)
-            | Opcode::ConsumeFuel(_) => (self.sp(), None, None),
-            _ => unimplemented!(),
-        }
-    }
-
-    fn post_state(&mut self, instr: &Opcode) -> Option<(u64, u64)> {
-        match *instr {
-            Opcode::I32Eq
-            | Opcode::I32Add
-            | Opcode::I32Mul
-            | Opcode::I32And
-            | Opcode::I32Or
-            | Opcode::I32Xor => self.op_post_state(),
-            Opcode::I32Const(_) => self.op_post_state(),
-
-            // HACK: These are unimplemented opcodes
-            Opcode::ReturnCallInternal(_)
-            | Opcode::Return
-            | Opcode::StackCheck(_)
-            | Opcode::SignatureCheck(_)
-            | Opcode::ConsumeFuel(_) => None,
-            _ => unimplemented!(),
-        }
-    }
-
-    fn binop_pre_state(&mut self) -> (u64, Option<(u64, u64)>, Option<(u64, u64)>) {
-        let sp1_val = self.sp.last();
-        let sp2_val = self.sp.nth_back(2);
-        let sp = self.sp();
-        (
-            sp,
-            Some((sp - 1, sp1_val.as_u64())),
-            Some((sp - 2, sp2_val.as_u64())),
-        )
-    }
-
-    fn op_post_state(&mut self) -> Option<(u64, u64)> {
-        let spd_val = self.sp.last();
-        let sp = self.sp();
-        Some((sp - 1, spd_val.as_u64()))
-    }
-
-    fn sp(&mut self) -> u64 {
-        let sp_isize = self.sp.offset_from(self.value_stack.base_ptr());
-        sp_isize as u64
     }
 }

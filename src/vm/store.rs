@@ -44,14 +44,14 @@ pub struct Store<T> {
 
 impl<T: Default> Default for Store<T> {
     fn default() -> Self {
-        Self::new(ExecutorConfig::default(), T::default())
+        Self::new(ExecutorConfig::default(), T::default(), 0)
     }
 }
 
 impl<T> Store<T> {
-    pub fn new(config: ExecutorConfig, context: T) -> Self {
+    pub fn new(config: ExecutorConfig, context: T, num_pages: u32) -> Self {
         // create global memory
-        let global_memory = GlobalMemory::new(Pages::default());
+        let global_memory = GlobalMemory::new(Pages::new(num_pages).unwrap());
 
         let empty_data_segments = bitarr![0; N_MAX_DATA_SEGMENTS];
         let empty_elem_segments = bitarr![0; N_MAX_ELEM_SEGMENTS];

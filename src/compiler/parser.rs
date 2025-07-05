@@ -147,12 +147,19 @@ impl ModuleParser {
             .entrypoint_bytecode
             .finalize(true);
 
-        // merge the entrypoint with our code section
-        // let mut code_section = self
-        //     .allocations
-        //     .translation
-        //     .segment_builder
-        //     .entrypoint_bytecode;
+        let num_pages = match self
+            .allocations
+            .translation
+            .segment_builder
+            .entrypoint_bytecode[0]
+        {
+            Opcode::I32Const(num_pages) => {
+                // the first instruction is always a memory grow
+                num_pages.as_u32()
+            }
+            _ => 0,
+        };
+
         // let entrypoint_length = code_section.len() as u32;
         // code_section.extend(self.allocations.translation.instruction_set.iter());
         let mut code_section = self.allocations.translation.instruction_set.clone();
@@ -194,6 +201,7 @@ impl ModuleParser {
                 .global_memory_section,
             elem_section: element_section,
             wasm_section: wasm_binary.to_vec(),
+            num_pages,
         };
         let constructor_params = self.allocations.translation.constructor_params;
 

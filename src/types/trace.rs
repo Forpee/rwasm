@@ -32,9 +32,33 @@ impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
         let sp2_read = || MemoryOp::Read(val.stack_state.sp2.unwrap().0);
         let spd_write = || {
             MemoryOp::Write(
-                val.stack_state.spd.unwrap().0,
+                val.stack_state.spd.unwrap().0, /* TODO: Fix opaque indexes 0 & 1 for tuples.
+                                                 * i.e. create new type */
                 val.stack_state.spd.unwrap().1,
             )
+        };
+
+        let sp1_offset = || -> u64 {
+            let sp1_val = val.stack_state.sp1.unwrap().1;
+            let imm = val.instruction.imm.unwrap();
+            imm.checked_add(sp1_val).expect("Memory offset overflow")
+        };
+        let sp2_offset = || -> u64 {
+            let sp2_val = val.stack_state.sp2.unwrap().1;
+            let imm = val.instruction.imm.unwrap();
+            imm.checked_add(sp2_val).expect("Memory offset overflow")
+        };
+
+        let ram_write_value = || match val.memory_state {
+            Some(MemoryState::Read {
+                address: _,
+                value: _,
+            }) => panic!("Unexpected MemoryState::Read"),
+            Some(MemoryState::Write {
+                address: _,
+                post_value,
+            }) => post_value,
+            None => panic!("Memory state not found"),
         };
 
         match val.instruction.opcode {
@@ -55,6 +79,18 @@ impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
                     MemoryOp::noop_read(),
                 ]
             }
+            WASMOpcode::I32LOAD => [
+                sp1_read(),
+                MemoryOp::noop_read(),
+                spd_write(),
+                MemoryOp::Read(sp1_offset()),
+            ],
+            WASMOpcode::I32STORE => [
+                sp1_read(),
+                sp2_read(),
+                MemoryOp::noop_write(),
+                MemoryOp::Write(sp2_offset(), ram_write_value()),
+            ],
             WASMOpcode::UNIMPL => {
                 // This is a placeholder for unsupported opcodes
                 // We return noop reads/writes
@@ -65,7 +101,6 @@ impl From<&WASMTraceRow> for [MemoryOp; MEMORY_OPS_PER_INSTRUCTION] {
                     MemoryOp::noop_read(),
                 ]
             }
-            _ => unreachable!("{val:?}"),
         }
     }
 }
@@ -112,11 +147,9 @@ impl From<&Opcode> for WASMOpcode {
             Opcode::I32Load(_) => WASMOpcode::I32LOAD,
             Opcode::I32Store(_) => WASMOpcode::I32STORE,
             Opcode::I32Eq => WASMOpcode::I32EQ,
-            Opcode::ReturnCallInternal(_)
-            | Opcode::StackCheck(_)
-            | Opcode::SignatureCheck(_)
-            | Opcode::Return
-            | Opcode::ConsumeFuel(_) => WASMOpcode::UNIMPL,
+
+            // TODO
+            Opcode::Return => WASMOpcode::UNIMPL,
             _ => panic!("Unsupported opcode for WASMOpcode conversion"),
         }
     }
@@ -133,15 +166,8 @@ pub struct StackState {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum MemoryState {
-    Read {
-        address: u64,
-        value: u64,
-    },
-    Write {
-        address: u64,
-        pre_value: u64,
-        post_value: u64,
-    },
+    Read { address: u64, value: u64 },
+    Write { address: u64, post_value: u64 },
 }
 
 /// Boolean flags used in Jolt's R1CS constraints (`opflags` in the Jolt paper).
@@ -152,7 +178,8 @@ pub enum MemoryState {
 )]
 pub enum CircuitFlags {
     #[default] // Need a default so that we can derive EnumIter on `JoltR1CSInputs`
-    BinOp,
+    StackPop,
+    TwoStackPops,
     /// 1 if the instruction is a load (i.e. `LW`)
     Load,
     /// 1 if the instruction is a store (i.e. `SW`)
@@ -168,11 +195,22 @@ impl WASMInstruction {
     pub fn to_circuit_flags(&self) -> [bool; NUM_CIRCUIT_FLAGS] {
         let mut flags = [false; NUM_CIRCUIT_FLAGS];
 
-        flags[CircuitFlags::BinOp as usize] =
+        flags[CircuitFlags::StackPop as usize] =
             !matches!(self.opcode, WASMOpcode::UNIMPL | WASMOpcode::I32CONST);
 
-        flags[CircuitFlags::WriteLookupOutputToRD as usize] =
-            !matches!(self.opcode, WASMOpcode::UNIMPL);
+        flags[CircuitFlags::TwoStackPops as usize] = !matches!(
+            self.opcode,
+            WASMOpcode::UNIMPL | WASMOpcode::I32CONST | WASMOpcode::I32LOAD
+        );
+
+        flags[CircuitFlags::Load as usize] = matches!(self.opcode, WASMOpcode::I32LOAD);
+
+        flags[CircuitFlags::Store as usize] = matches!(self.opcode, WASMOpcode::I32STORE);
+
+        flags[CircuitFlags::WriteLookupOutputToRD as usize] = !matches!(
+            self.opcode,
+            WASMOpcode::UNIMPL | WASMOpcode::I32LOAD | WASMOpcode::I32STORE
+        );
 
         flags[CircuitFlags::ConcatLookupQueryChunks as usize] = matches!(
             self.opcode,

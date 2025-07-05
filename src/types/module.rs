@@ -37,6 +37,8 @@ pub struct RwasmModule {
 
     /// An original Wasm bytecode used during compilation
     pub wasm_section: Vec<u8>,
+
+    pub num_pages: u32,
 }
 
 impl RwasmModule {
@@ -63,6 +65,7 @@ impl RwasmModule {
             data_section: vec![],
             elem_section: vec![],
             wasm_section: vec![],
+            num_pages: 0,
         }
     }
 
@@ -72,6 +75,7 @@ impl RwasmModule {
             data_section: vec![],
             elem_section: vec![],
             wasm_section: vec![],
+            num_pages: 0,
         }
     }
 
@@ -123,12 +127,13 @@ impl<Context> Decode<Context> for RwasmModule {
         let data_section: Vec<u8> = Decode::decode(decoder)?;
         let elem_section: Vec<u32> = Decode::decode(decoder)?;
         let wasm_section: Vec<u8> = Decode::decode(decoder)?;
-        Ok(Self {
-            code_section,
-            data_section,
-            elem_section,
-            wasm_section,
-        })
+        todo!("num_pages")
+        // Ok(Self {
+        //     code_section,
+        //     data_section,
+        //     elem_section,
+        //     wasm_section,
+        // })
     }
 }
 

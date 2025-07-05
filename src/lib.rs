@@ -29,7 +29,7 @@ pub fn trace(args: &WASMArgs) -> Vec<WASMTraceRow> {
         .with_allow_malformed_entrypoint_func_type(true)
         .with_consume_fuel(false);
     let (rwasm_module, _) = RwasmModule::compile(config, &args.bytecode).unwrap();
-    let mut store = Store::new(ExecutorConfig::default(), ());
+    let mut store = Store::new(ExecutorConfig::default(), (), rwasm_module.num_pages);
     let mut engine = ExecutionEngine::new();
     for input in args.inputs.iter() {
         engine.value_stack().push((*input).into());

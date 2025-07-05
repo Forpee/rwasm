@@ -1,6 +1,6 @@
 // //! Tracer library for a Jolt zkVM.
 
-use crate::{StackState, WASMInstruction, WASMTraceRow};
+use crate::{MemoryState, StackState, WASMInstruction, WASMTraceRow};
 use core::cell::RefCell;
 
 #[derive(Debug)]
@@ -39,6 +39,15 @@ impl JoltTracer {
         let mut rows = self.rows.try_borrow_mut().unwrap();
         let row = rows.last_mut().unwrap();
         row.stack_state.spd = spd;
+    }
+
+    pub fn push_memory(&self, memory_state: MemoryState) {
+        if !*self.open.try_borrow().unwrap() {
+            return;
+        }
+        if let Some(row) = self.rows.try_borrow_mut().unwrap().last_mut() {
+            row.memory_state = Some(memory_state);
+        }
     }
 
     pub fn end_instruction(&self) {

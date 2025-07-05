@@ -44,8 +44,10 @@ pub fn decode(bytecode: &[u8], entry_point: &str) -> (Vec<WASMInstruction>, Vec<
     const PREPEND_NOOP: u64 = 1;
     let config = CompilationConfig::default()
         .with_entrypoint_name(entry_point.into())
-        .with_allow_malformed_entrypoint_func_type(true);
+        .with_allow_malformed_entrypoint_func_type(true)
+        .with_consume_fuel(false);
     let (rwasm_module, _) = RwasmModule::compile(config, bytecode).unwrap();
+    println!("Decoded module: {:#?}", rwasm_module.code_section.instr);
     let instructions: Vec<WASMInstruction> = rwasm_module
         .code_section
         .instr

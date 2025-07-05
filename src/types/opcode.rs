@@ -300,7 +300,7 @@ impl Opcode {
                 opcode: self.into(),
                 imm: Some(value.to_bits() as u64),
             },
-            _ => unimplemented!(),
+            _ => unimplemented!("Trace not implemented for opcode: {:?}", self),
         }
     }
 }

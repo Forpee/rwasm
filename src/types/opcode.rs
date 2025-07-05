@@ -303,6 +303,16 @@ impl Opcode {
                 opcode: self.into(),
                 imm: Some(value.to_bits() as u64),
             },
+            Opcode::I32Load(offset) => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: Some(offset as u64),
+            },
+            Opcode::I32Store(offset) => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: Some(offset as u64),
+            },
 
             // HACK: These are unimplemented opcodes
             Opcode::ReturnCallInternal(_)

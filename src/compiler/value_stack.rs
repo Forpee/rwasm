@@ -33,7 +33,7 @@ impl ValueStackHeight {
     /// # Note
     ///
     /// This does not include input parameters and local variables.
-    pub fn max_stack_height(&self) -> u32 {
+    pub fn _max_stack_height(&self) -> u32 {
         self.max_height
     }
 

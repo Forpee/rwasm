@@ -16,6 +16,7 @@ use crate::{
     MaxStackHeight,
     SysFuncIdx,
     TrapCode,
+    WASMInstruction,
 };
 use alloc::{format, vec::Vec};
 use bincode::{Decode, Encode};
@@ -280,6 +281,52 @@ impl Opcode {
                 *offset = new_offset.into();
             }
             _ => unreachable!(),
+        }
+    }
+}
+
+impl Opcode {
+    pub fn trace(&self, address: u64) -> WASMInstruction {
+        match *self {
+            Opcode::I32Add
+            | Opcode::I32Mul
+            | Opcode::I32And
+            | Opcode::I32Or
+            | Opcode::I32Xor
+            | Opcode::I32Eq => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: None,
+            },
+            Opcode::I32Const(value) => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: Some(value.to_bits() as u64),
+            },
+            Opcode::I32Load(offset) => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: Some(offset as u64),
+            },
+            Opcode::I32Store(offset) => WASMInstruction {
+                address,
+                opcode: self.into(),
+                imm: Some(offset as u64),
+            },
+
+            // HACK: These are unimplemented opcodes
+            Opcode::ReturnCallInternal(_)
+            | Opcode::Return
+            | Opcode::StackCheck(_)
+            | Opcode::SignatureCheck(_) => {
+                println!("\x1b[33mwarning\x1b[0m: unimplemented instruction: {self:?}"); // TODO: use tracing
+                WASMInstruction {
+                    address,
+                    opcode: self.into(),
+                    imm: None,
+                }
+            }
+            _ => unimplemented!("Trace not implemented for opcode: {:?}", self),
         }
     }
 }

@@ -6,12 +6,16 @@ mod memory;
 mod stack;
 mod system;
 mod table;
+mod tracing;
 
 use crate::{
     types::{AddressOffset, RwasmModule, TableIdx, UntypedValue},
     CallStack,
     Caller,
     InstructionPtr,
+    LittleEndianConvert,
+    LoadInto,
+    MemoryState,
     Opcode,
     Store,
     SysFuncIdx,
@@ -137,8 +141,10 @@ impl<'a, T> RwasmExecutor<'a, T> {
             let instr = self.ip.get();
             #[cfg(feature = "debug-print")]
             self.debug_print(&instr);
-            #[cfg(feature = "tracing")]
-            self.trace_instr(&instr);
+            const PREPEND_NOOP: u64 = 1;
+            let trace_instr = instr.trace(self.program_counter() as u64 + PREPEND_NOOP);
+            self.store.jolt_tracer.start_instruction(trace_instr);
+            self.capture_pre_state(&instr);
             match instr {
                 // stack
                 Unreachable => self.visit_unreachable()?,
@@ -244,6 +250,8 @@ impl<'a, T> RwasmExecutor<'a, T> {
                 #[cfg(feature = "fpu")]
                 opcode => self.exec_fpu_opcode(opcode)?,
             }
+            self.capture_post_state(&instr);
+            self.store.jolt_tracer.end_instruction();
         }
     }
 
@@ -338,6 +346,18 @@ impl<'a, T> RwasmExecutor<'a, T> {
                 &memory[base_address as usize..(base_address + len) as usize],
             );
         }
+
+        // Jolt tracing for store32
+        let base_address = offset + u32::from(address);
+        let mut buffer = <<u32 as LittleEndianConvert>::Bytes as Default>::default();
+        buffer.load_into(memory, base_address as usize).unwrap();
+        let post_value = <u32 as LittleEndianConvert>::from_le_bytes(buffer);
+        let memory_state = MemoryState::Write {
+            address: base_address as u64,
+            post_value: post_value as u64,
+        };
+        self.store.jolt_tracer.push_memory(memory_state);
+
         self.ip.add(1);
         Ok(())
     }

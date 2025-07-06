@@ -110,7 +110,7 @@ impl ValueStack {
     ///
     /// The returned [`ValueStackPtr`] points to the first value on the [`ValueStack`].
     #[inline]
-    fn base_ptr(&mut self) -> ValueStackPtr {
+    pub fn base_ptr(&mut self) -> ValueStackPtr {
         ValueStackPtr::new(self.entries.as_mut_ptr(), self.entries.len())
     }
 

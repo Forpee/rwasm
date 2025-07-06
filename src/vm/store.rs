@@ -1,5 +1,6 @@
 use crate::{
     always_failing_syscall_handler,
+    vm::jolt_tracer::JoltTracer,
     ExecutorConfig,
     FuelCosts,
     GlobalIdx,
@@ -38,18 +39,19 @@ pub struct Store<T> {
     // list of nested calls return pointers
     pub(crate) syscall_handler: SyscallHandler<T>,
     pub(crate) fuel_costs: FuelCosts,
+    pub jolt_tracer: JoltTracer,
 }
 
 impl<T: Default> Default for Store<T> {
     fn default() -> Self {
-        Self::new(ExecutorConfig::default(), T::default())
+        Self::new(ExecutorConfig::default(), T::default(), 0)
     }
 }
 
 impl<T> Store<T> {
-    pub fn new(config: ExecutorConfig, context: T) -> Self {
+    pub fn new(config: ExecutorConfig, context: T, num_pages: u32) -> Self {
         // create global memory
-        let global_memory = GlobalMemory::new(Pages::default());
+        let global_memory = GlobalMemory::new(Pages::new(num_pages).unwrap());
 
         let empty_data_segments = bitarr![0; N_MAX_DATA_SEGMENTS];
         let empty_elem_segments = bitarr![0; N_MAX_ELEM_SEGMENTS];
@@ -76,6 +78,7 @@ impl<T> Store<T> {
             empty_data_segments,
             config,
             fuel_costs: Default::default(),
+            jolt_tracer: JoltTracer::default(),
         }
     }
 

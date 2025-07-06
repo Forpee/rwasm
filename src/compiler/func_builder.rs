@@ -41,8 +41,8 @@ impl<'a> FuncBuilder<'a> {
     pub fn translate(mut self) -> Result<ReusableAllocations, CompilationError> {
         self.translator.prepare(self.func_idx)?;
         // emit special opcodes before the beginning of the function
-        self.translate_signature_check();
-        self.translate_stack_alloc();
+        // self.translate_signature_check();
+        // self.translate_stack_alloc();
         self.translate_locals()?;
         let offset = self.translate_operators()?;
         self.validator.finish(offset)?;
@@ -94,7 +94,7 @@ impl<'a> FuncBuilder<'a> {
         Ok(())
     }
 
-    fn translate_signature_check(&mut self) {
+    fn _translate_signature_check(&mut self) {
         let func_type_idx = self.translator.alloc.resolve_func_type_index(self.func_idx);
         let signature_index = self
             .translator
@@ -106,7 +106,7 @@ impl<'a> FuncBuilder<'a> {
             .op_signature_check(signature_index);
     }
 
-    fn translate_stack_alloc(&mut self) {
+    fn _translate_stack_alloc(&mut self) {
         // we use `u32::MAX` here because we replace it with
         // the final calculated value later
         self.translator

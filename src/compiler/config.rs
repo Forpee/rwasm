@@ -51,15 +51,15 @@ impl Default for CompilationConfig {
 impl CompilationConfig {
     /// Returns the WebAssembly features configuration for the current instance.
     pub fn wasm_features(&self) -> WasmFeatures {
-        let mut wasm_features = WasmFeatures::default();
-        wasm_features.mutable_global = true;
-        wasm_features.saturating_float_to_int = true;
-        wasm_features.sign_extension = true;
-        wasm_features.multi_value = true;
-        wasm_features.bulk_memory = true;
-        wasm_features.reference_types = true;
-        wasm_features.tail_call = true;
-        wasm_features.extended_const = true;
+        let wasm_features = WasmFeatures::default();
+        // wasm_features.mutable_global = true;
+        // wasm_features.saturating_float_to_int = true;
+        // wasm_features.sign_extension = true;
+        // wasm_features.multi_value = true;
+        // wasm_features.bulk_memory = true;
+        // wasm_features.reference_types = true;
+        // wasm_features.tail_call = true;
+        // wasm_features.extended_const = true;
         wasm_features
     }
 

@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
+/// A step in the execution trace. A step in the execution trace documents all the variables used at
+/// a single CPU cycle, for example some variables could be [pc, sp1_read_addr, sp1_read_value,
+/// RAM_READ_addr,RAM_READ_value, RAM_WRITE_addr, RAM_WRITE_value]. We also trace the
+/// [`WASMInstruction`] invoked as CPU state is determinisically derived from the instr
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WASMTraceRow {
     pub instruction: WASMInstruction,
